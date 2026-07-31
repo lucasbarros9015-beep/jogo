@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Asteroid Dodge</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #000;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="1200" height="910"></canvas>
+
+<script>
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+  const asteroidImages = [];
+  const asteroidImageNames = ["a1.png", "a2.png", "a3.png"];
+
+  const spacecraftWidth = 100000; // Nave 
+  const spacecraftHeight = 300 ;
+  const spacecraftSpeed = 100;
+  const asteroidRadius = 60; // Asteroide
+  const asteroidSpeed = 100;
+  const bulletWidth = 20;
+  const bulletHeight = 10;
+  const bulletSpeed = 100;
+
+  let score = 0;
+  let spacecraftX = canvas.width / 2 - spacecraftWidth / 2;
+  let spacecraftY = canvas.height - spacecraftHeight - 10;
+  let leftPressed = false;
+  let rightPressed = false;
+  let upPressed = false;
+  let downPressed = false;
+  let asteroids = [];
+  let bullets = [];
+  let explosions = [];
+  let spacePressed = false;
+
+  const spacecraftImage = new Image();
+  spacecraftImage.src = 'nave.png';
+
+  const backgroundImage = new Image();
+  backgroundImage.src = 'galaxia.jpg';
+
+  asteroidImageNames.forEach((imageName) => {
+    const img = new Image();
+    img.src = imageName;
+    asteroidImages.push(img);
+  });
+
+  document.addEventListener("keydown", keyDownHandler, false);
+  document.addEventListener("keyup", keyUpHandler, false);
+
+  function keyDownHandler(event) {
+    if (event.key === "Left" || event.key === "ArrowLeft") leftPressed = true;
+    else if (event.key === "Right" || event.key === "ArrowRight") rightPressed = true;
+    else if (event.key === "Up" || event.key === "ArrowUp") upPressed = true;
+    else if (event.key === "Down" || event.key === "ArrowDown") downPressed = true;
+    else if (event.key === " ") {
+      spacePressed = true;
+      shootBullet();
+    }
+  }
+
+  function keyUpHandler(event) {
+    if (event.key === "Left" || event.key === "ArrowLeft") leftPressed = false;
+    else if (event.key === "Right" || event.key === "ArrowRight") rightPressed = false;
+    else if (event.key === "Up" || event.key === "ArrowUp") upPressed = false;
+    else if (event.key === "Down" || event.key === "ArrowDown") downPressed = false;
+    else if (event.key === " ") spacePressed = false;
+  }
+
+  function shootBullet() {
+    if (bullets.length < 50) {
+      bullets.push({
+        x: spacecraftX + spacecraftWidth / 2 - bulletWidth / 2,
+        y: spacecraftY
+      });
+    }
+  }
+
+  function drawBullets() {
+    ctx.fillStyle = "yellow";
+    bullets.forEach(b => ctx.fillRect(b.x, b.y, bulletWidth, bulletHeight));
+  }
+
+  function moveBullets() {
+    for (let i = 0; i < bullets.length; i++) {
+      bullets[i].y -= bulletSpeed;
+      if (bullets[i].y < 0) {
+        bullets.splice(i, 1);
+        i--;
+      }
+    }
+  }
+
+  function drawSpacecraft() {
+    ctx.drawImage(spacecraftImage, spacecraftX, spacecraftY, spacecraftWidth, spacecraftHeight);
+  }
+
+  function drawAsteroids() {
+    for (let i = 0; i < asteroids.length; i++) {
+      const img = asteroidImages[i % asteroidImages.length];
+      ctx.drawImage(img, asteroids[i].x, asteroids[i].y, asteroidRadius * 2, asteroidRadius * 2);
+    }
+  }
+
+  function drawExplosions() {
+    for (let i = 0; i < explosions.length; i++) {
+      const exp = explosions[i];
+      ctx.beginPath();
+      ctx.arc(exp.x, exp.y, 40, 0, Math.PI * 2);
+      ctx.fillStyle = "red";
+      ctx.fill();
+    }
+  }
+
+  function checkBulletAsteroidCollision() {
+    for (let i = 0; i < bullets.length; i++) {
+      for (let j = 0; j < asteroids.length; j++) {
+        if (
+          bullets[i].x < asteroids[j].x + asteroidRadius * 2 &&
+          bullets[i].x + bulletWidth > asteroids[j].x &&
+          bullets[i].y < asteroids[j].y + asteroidRadius * 2 &&
+          bullets[i].y + bulletHeight > asteroids[j].y
+        ) {
+          explosions.push({
+            x: asteroids[j].x + asteroidRadius,
+            y: asteroids[j].y + asteroidRadius
+          });
+          setTimeout(() => explosions.shift(), 300);
+          bullets.splice(i, 1);
+          asteroids.splice(j, 1);
+          i--;
+          score++;
+          break;
+        }
+      }
+    }
+  }
+
+  function moveSpacecraft() {
+    if (leftPressed && spacecraftX > 0) spacecraftX -= spacecraftSpeed;
+    if (rightPressed && spacecraftX < canvas.width - spacecraftWidth) spacecraftX += spacecraftSpeed;
+    if (upPressed && spacecraftY > 0) spacecraftY -= spacecraftSpeed;
+    if (downPressed && spacecraftY < canvas.height - spacecraftHeight) spacecraftY += spacecraftSpeed;
+  }
+
+  function moveAsteroids() {
+    for (let i = 0; i < asteroids.length; i++) {
+      asteroids[i].y += asteroidSpeed;
+      if (asteroids[i].y > canvas.height) {
+        asteroids.splice(i, 1);
+        i--;
+        score++;
+      } else if (
+        asteroids[i].x < spacecraftX + spacecraftWidth &&
+        asteroids[i].x + asteroidRadius * 2 > spacecraftX &&
+        asteroids[i].y < spacecraftY + spacecraftHeight &&
+        asteroids[i].y + asteroidRadius * 2 > spacecraftY
+      ) {
+        alert("FIM! Pontuação: " + score);
+        document.location.reload();
+        clearInterval(gameLoop);
+      }
+    }
+  }
+
+  function createAsteroids() {
+    const asteroidCount = 20;
+    for (let i = 0; i < asteroidCount; i++) {
+      const x = Math.random() * (canvas.width - asteroidRadius * 2);
+      const y = Math.random() * -canvas.height;
+      asteroids.push({ x, y });
+    }
+  }
+
+  function drawScore() {
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "white";
+    ctx.fillText("Pontuação: " + score, 10, 20);
+  }
+
+  function drawBackground() {
+    ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBackground();
+    drawSpacecraft();
+    drawAsteroids();
+    drawBullets();
+    drawExplosions();
+    drawScore();
+    moveSpacecraft();
+    moveAsteroids();
+    moveBullets();
+    checkBulletAsteroidCollision();
+  }
+
+  const gameLoop = setInterval(draw, 10);
+  setInterval(createAsteroids, 2000);
+</script>
+</body>
+</html>
